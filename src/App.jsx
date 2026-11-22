@@ -1,12 +1,19 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Info, X } from 'lucide-react';
 import { Header } from './components/Header';
 import { RespondentsList } from './components/RespondentsList';
-import { SlotTooltip } from './components/SlotTooltip';
+import { SlotBottomSheet, SlotTooltip } from './components/SlotTooltip';
 import { UserSetupPanel } from './components/UserSetupPanel';
 import { WeeklyGrid } from './components/WeeklyGrid';
 import { addWeeks, getStartOfWeek, getWeekDays } from './constants/schedule';
 import { useScheduleSync } from './hooks/useScheduleSync';
+
+const MOBILE_QUERY = '(max-width: 960px)';
+
+function getInitialIsMobile() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
 
 export default function App() {
   const {
@@ -23,6 +30,9 @@ export default function App() {
 
   const [weekStart, setWeekStart] = useState(() => getStartOfWeek(new Date()));
   const [hoveredSlot, setHoveredSlot] = useState(null);
+  const [inspectedSlot, setInspectedSlot] = useState(null);
+  const [interactionMode, setInteractionMode] = useState('paint');
+  const [isMobileViewport, setIsMobileViewport] = useState(getInitialIsMobile);
   const [pinnedHighlightUserId, setPinnedHighlightUserId] = useState(null);
   const [hoverHighlightUserId, setHoverHighlightUserId] = useState(null);
   const [nameError, setNameError] = useState('');
@@ -31,6 +41,19 @@ export default function App() {
 
   const nameInputRef = useRef(null);
   const toastTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const handleChange = (event) => {
+      setIsMobileViewport(event.matches);
+      if (!event.matches) {
+        setInspectedSlot(null);
+      }
+    };
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
+  }, []);
 
   const showToast = useCallback((msg) => {
     setToastMessage(msg);
@@ -58,7 +81,7 @@ export default function App() {
   const handleRequireName = useCallback(() => {
     setNameError('Vui lòng nhập tên của bạn trước khi tô lịch.');
     nameInputRef.current?.focus();
-    showToast('Nhập tên của bạn ở cột bên phải để bắt đầu tô lịch.');
+    showToast('Nhập tên của bạn trước khi đánh dấu giờ rảnh.');
   }, [showToast]);
 
   const handleCopyLink = useCallback(async () => {
@@ -93,6 +116,23 @@ export default function App() {
     }
   }, []);
 
+  const handleChangeWeek = useCallback((updater) => {
+    setInspectedSlot(null);
+    setHoveredSlot(null);
+    setWeekStart(updater);
+  }, []);
+
+  const handleChangeInteractionMode = useCallback((nextMode) => {
+    setInteractionMode(nextMode);
+    if (nextMode === 'paint') {
+      setInspectedSlot(null);
+    }
+  }, []);
+
+  const handleInspectEmpty = useCallback(() => {
+    showToast('Khung giờ này chưa có ai chọn.');
+  }, [showToast]);
+
   const activeHighlightedUserId = pinnedHighlightUserId || hoverHighlightUserId;
 
   return (
@@ -101,10 +141,6 @@ export default function App() {
         roomId={roomId}
         syncMode={syncMode}
         syncStatus={syncStatus}
-        weekStart={weekStart}
-        onPrevWeek={() => setWeekStart((prev) => addWeeks(prev, -1))}
-        onTodayWeek={() => setWeekStart(getStartOfWeek(new Date()))}
-        onNextWeek={() => setWeekStart((prev) => addWeeks(prev, 1))}
         onCopyLink={handleCopyLink}
       />
 
@@ -128,18 +164,28 @@ export default function App() {
       )}
 
       <main className="main-layout">
-        <WeeklyGrid
-          weekStart={weekStart}
-          users={users}
-          currentUser={currentUser}
-          highlightedUserId={activeHighlightedUserId}
-          onToggleSlots={toggleSlots}
-          onRequireName={handleRequireName}
-          onHoverSlot={setHoveredSlot}
-          onLeaveSlot={() => setHoveredSlot(null)}
-        />
+        <div className="layout-grid">
+          <WeeklyGrid
+            weekStart={weekStart}
+            users={users}
+            currentUser={currentUser}
+            highlightedUserId={activeHighlightedUserId}
+            interactionMode={interactionMode}
+            isMobileViewport={isMobileViewport}
+            onChangeInteractionMode={handleChangeInteractionMode}
+            onPrevWeek={() => handleChangeWeek((prev) => addWeeks(prev, -1))}
+            onTodayWeek={() => handleChangeWeek(getStartOfWeek(new Date()))}
+            onNextWeek={() => handleChangeWeek((prev) => addWeeks(prev, 1))}
+            onToggleSlots={toggleSlots}
+            onRequireName={handleRequireName}
+            onHoverSlot={setHoveredSlot}
+            onLeaveSlot={() => setHoveredSlot(null)}
+            onInspectSlot={setInspectedSlot}
+            onInspectEmpty={handleInspectEmpty}
+          />
+        </div>
 
-        <aside className="sidebar" aria-label="Cài đặt cá nhân và thành viên">
+        <div className="layout-setup">
           <UserSetupPanel
             nameInputRef={nameInputRef}
             nameError={nameError}
@@ -149,7 +195,9 @@ export default function App() {
             onUpdateProfile={updateProfile}
             onClearWeek={handleClearWeek}
           />
+        </div>
 
+        <div className="layout-respondents">
           <RespondentsList
             users={users}
             currentUserId={currentUser.id}
@@ -158,10 +206,23 @@ export default function App() {
             highlightedUserId={pinnedHighlightUserId}
             onHighlightUser={handleHighlightUser}
           />
-        </aside>
+        </div>
       </main>
 
-      <SlotTooltip hoveredSlot={hoveredSlot} currentUserId={currentUser.id} />
+      {!isMobileViewport ? (
+        <SlotTooltip
+          hoveredSlot={hoveredSlot}
+          currentUserId={currentUser.id}
+          totalUsers={users.length}
+        />
+      ) : (
+        <SlotBottomSheet
+          inspectedSlot={inspectedSlot}
+          currentUserId={currentUser.id}
+          totalUsers={users.length}
+          onClose={() => setInspectedSlot(null)}
+        />
+      )}
 
       {toastMessage && (
         <div className="toast" role="status" aria-live="polite">

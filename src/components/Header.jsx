@@ -1,19 +1,11 @@
 import { useState } from 'react';
-import {
-  CalendarDays,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Hash,
-} from 'lucide-react';
-import { formatWeekRange } from '../constants/schedule';
+import { CalendarDays, Check, Copy, Hash } from 'lucide-react';
 
 function getSyncPillInfo(syncMode, syncStatus) {
   if (syncMode === 'local') {
     return {
       className: 'sync-pill sync-pill--local',
-      label: 'Local Mode',
+      label: 'Local',
       title: 'Đồng bộ giữa các tab trình duyệt. Kết nối Firebase để đồng bộ nhiều thiết bị.',
     };
   }
@@ -46,19 +38,9 @@ function getSyncPillInfo(syncMode, syncStatus) {
   }
 }
 
-export function Header({
-  roomId,
-  syncMode,
-  syncStatus,
-  weekStart,
-  onPrevWeek,
-  onTodayWeek,
-  onNextWeek,
-  onCopyLink,
-}) {
+export function Header({ roomId, syncMode, syncStatus, onCopyLink }) {
   const [copied, setCopied] = useState(false);
   const pill = getSyncPillInfo(syncMode, syncStatus);
-  const weekRangeLabel = formatWeekRange(weekStart);
 
   const handleCopy = async () => {
     const ok = await onCopyLink();
@@ -90,46 +72,14 @@ export function Header({
           </span>
         </div>
 
-        <div className="header-actions">
-          <nav className="week-nav" aria-label="Điều hướng tuần">
-            <button
-              type="button"
-              className="btn btn--icon"
-              onClick={onPrevWeek}
-              aria-label="Tuần trước"
-              title="Tuần trước"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={onTodayWeek}
-              title="Quay về tuần hiện tại"
-            >
-              Tuần này
-            </button>
-            <span className="week-nav-range">{weekRangeLabel}</span>
-            <button
-              type="button"
-              className="btn btn--icon"
-              onClick={onNextWeek}
-              aria-label="Tuần sau"
-              title="Tuần sau"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </nav>
-
-          <button
-            type="button"
-            className={`btn btn--copy-link ${copied ? 'btn--success' : 'btn--primary'}`}
-            onClick={handleCopy}
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            <span>{copied ? 'Đã sao chép' : 'Copy link mời'}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          className={`btn btn--copy-link ${copied ? 'btn--success' : 'btn--primary'}`}
+          onClick={handleCopy}
+        >
+          {copied ? <Check size={16} /> : <Copy size={16} />}
+          <span>{copied ? 'Đã sao chép' : 'Copy link mời'}</span>
+        </button>
       </div>
     </header>
   );

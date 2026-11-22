@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Pencil,
+} from 'lucide-react';
+import {
   TIME_SLOTS,
   formatMonthTitle,
+  formatWeekRange,
+  getHeatLevel,
   getWeekDays,
-  hexToRgba,
   makeSlotKey,
 } from '../constants/schedule';
 
@@ -12,13 +20,22 @@ export function WeeklyGrid({
   users,
   currentUser,
   highlightedUserId,
+  interactionMode,
+  isMobileViewport,
+  onChangeInteractionMode,
+  onPrevWeek,
+  onTodayWeek,
+  onNextWeek,
   onToggleSlots,
   onRequireName,
   onHoverSlot,
   onLeaveSlot,
+  onInspectSlot,
+  onInspectEmpty,
 }) {
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const monthTitle = useMemo(() => formatMonthTitle(weekStart), [weekStart]);
+  const weekRangeLabel = useMemo(() => formatWeekRange(weekStart), [weekStart]);
 
   const [dragState, setDragState] = useState(null);
   const dragRef = useRef(null);
@@ -42,6 +59,23 @@ export function WeeklyGrid({
     [currentUser.slots],
   );
 
+  const maxOverlapInWeek = useMemo(() => {
+    let max = 0;
+    for (const day of weekDays) {
+      for (const slot of TIME_SLOTS) {
+        const key = makeSlotKey(day.isoDate, slot.hour);
+        const count = slotUsersMap.get(key)?.length || 0;
+        if (count > max) max = count;
+      }
+    }
+    return max;
+  }, [slotUsersMap, weekDays]);
+
+  const heatMaxCount = useMemo(
+    () => Math.max(maxOverlapInWeek, Math.min(users.length, 5), 1),
+    [maxOverlapInWeek, users.length],
+  );
+
   useEffect(() => {
     const handlePointerMove = (event) => {
       if (!dragRef.current) return;
@@ -59,11 +93,20 @@ export function WeeklyGrid({
 
     const handlePointerUp = (event) => {
       if (touchStartRef.current) {
-        const { slotKey, x, y, shouldSelect } = touchStartRef.current;
+        const { slotKey, day, slot, users: cellUsers, x, y, shouldSelect, mode } =
+          touchStartRef.current;
         touchStartRef.current = null;
         const dist = Math.hypot(event.clientX - x, event.clientY - y);
         if (dist < 10) {
-          onToggleSlots([slotKey], shouldSelect);
+          if (mode === 'inspect') {
+            if (cellUsers.length > 0) {
+              onInspectSlot({ slotKey, day, slot, users: cellUsers });
+            } else {
+              onInspectEmpty?.();
+            }
+          } else {
+            onToggleSlots([slotKey], shouldSelect);
+          }
         }
       }
 
@@ -91,10 +134,34 @@ export function WeeklyGrid({
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [onToggleSlots]);
+  }, [onInspectEmpty, onInspectSlot, onToggleSlots]);
 
-  const handleCellPointerDown = (event, slotKey) => {
+  const effectiveMode = isMobileViewport ? interactionMode : 'paint';
+
+  const handleCellPointerDown = (event, { slotKey, day, slot, displayUsers }) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    if (effectiveMode === 'inspect') {
+      if (event.pointerType === 'touch') {
+        touchStartRef.current = {
+          slotKey,
+          day,
+          slot,
+          users: displayUsers,
+          x: event.clientX,
+          y: event.clientY,
+          mode: 'inspect',
+        };
+        return;
+      }
+
+      if (displayUsers.length > 0) {
+        onInspectSlot({ slotKey, day, slot, users: displayUsers });
+      } else {
+        onInspectEmpty?.();
+      }
+      return;
+    }
 
     if (!currentUser.name.trim()) {
       onRequireName();
@@ -103,26 +170,40 @@ export function WeeklyGrid({
 
     onLeaveSlot();
     const isSelected = currentUserSlotSet.has(slotKey);
-    const mode = isSelected ? 'remove' : 'add';
+    const paintMode = isSelected ? 'remove' : 'add';
 
     if (event.pointerType === 'touch') {
       touchStartRef.current = {
         slotKey,
+        day,
+        slot,
+        users: displayUsers,
         x: event.clientX,
         y: event.clientY,
-        shouldSelect: mode === 'add',
+        shouldSelect: paintMode === 'add',
+        mode: 'paint',
       };
       return;
     }
 
     const visited = new Set([slotKey]);
-    dragRef.current = { mode, visited };
-    setDragState({ mode, visited: new Set(visited) });
+    dragRef.current = { mode: paintMode, visited };
+    setDragState({ mode: paintMode, visited: new Set(visited) });
   };
 
-  const handleCellKeyDown = (event, slotKey) => {
+  const handleCellKeyDown = (event, { slotKey, day, slot, displayUsers }) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
+
+    if (effectiveMode === 'inspect') {
+      if (displayUsers.length > 0) {
+        onInspectSlot({ slotKey, day, slot, users: displayUsers });
+      } else {
+        onInspectEmpty?.();
+      }
+      return;
+    }
+
     if (!currentUser.name.trim()) {
       onRequireName();
       return;
@@ -159,156 +240,231 @@ export function WeeklyGrid({
     };
   };
 
+  const handleSwitchMode = (nextMode) => {
+    if (nextMode === interactionMode) return;
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+    onChangeInteractionMode(nextMode);
+  };
+
   return (
     <section className="card weekly-grid-card" aria-label="Lịch rảnh theo tuần">
       <div className="grid-topbar">
-        <h2 className="grid-month-title">{monthTitle}</h2>
-        <p className="grid-hint">Nhấn hoặc kéo qua nhiều ô để tô khung giờ rảnh (2 tiếng/ô)</p>
+        <div className="grid-title-group">
+          <h2 className="grid-month-title">{monthTitle}</h2>
+          <p className="grid-hint">
+            {isMobileViewport
+              ? effectiveMode === 'inspect'
+                ? 'Chạm vào ô màu xanh để xem những ai rảnh.'
+                : 'Chạm vào ô lịch để đánh dấu khung giờ rảnh (2 tiếng/ô).'
+              : 'Nhấn hoặc kéo nhiều ô để tô giờ rảnh · Di chuột vào ô đã tô để xem chi tiết.'}
+          </p>
+        </div>
+
+        <nav className="week-nav" aria-label="Điều hướng tuần">
+          <button
+            type="button"
+            className="btn btn--icon"
+            onClick={onPrevWeek}
+            aria-label="Tuần trước"
+            title="Tuần trước"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={onTodayWeek}
+            title="Quay về tuần hiện tại"
+          >
+            Tuần này
+          </button>
+          <span className="week-nav-range">{weekRangeLabel}</span>
+          <button
+            type="button"
+            className="btn btn--icon"
+            onClick={onNextWeek}
+            aria-label="Tuần sau"
+            title="Tuần sau"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </nav>
       </div>
 
-      <div className="calendar-scroll-wrapper">
-        <div
-          className={`calendar-grid ${dragState ? 'calendar-grid--painting' : ''}`}
-          role="grid"
-          aria-label={`Lịch tuần ${monthTitle}`}
+      <div
+        className="mobile-mode-switch"
+        role="group"
+        aria-label="Chế độ thao tác trên mobile"
+      >
+        <button
+          type="button"
+          className={`mode-switch-btn ${
+            interactionMode === 'paint' ? 'mode-switch-btn--active' : ''
+          }`}
+          aria-pressed={interactionMode === 'paint'}
+          onClick={() => handleSwitchMode('paint')}
         >
-          <div className="calendar-corner" aria-hidden="true" />
+          <Pencil size={16} aria-hidden="true" />
+          <span>Tô lịch</span>
+        </button>
+        <button
+          type="button"
+          className={`mode-switch-btn ${
+            interactionMode === 'inspect' ? 'mode-switch-btn--active' : ''
+          }`}
+          aria-pressed={interactionMode === 'inspect'}
+          onClick={() => handleSwitchMode('inspect')}
+        >
+          <Eye size={16} aria-hidden="true" />
+          <span>Xem ai rảnh</span>
+        </button>
+      </div>
 
-          {weekDays.map((day) => (
-            <div
-              key={day.isoDate}
-              className={`day-header ${day.isToday ? 'day-header--today' : ''}`}
-            >
-              <span className="day-header-short">{day.dayShort}</span>
-              <span className="day-header-num">{day.dayNumber}</span>
-            </div>
-          ))}
+      <div className="calendar-scroll-frame">
+        <div className="calendar-scroll-wrapper">
+          <div
+            className={`calendar-grid ${dragState ? 'calendar-grid--painting' : ''}`}
+            role="grid"
+            aria-label={`Lịch tuần ${monthTitle}`}
+          >
+            <div className="calendar-corner" aria-hidden="true" />
 
-          {TIME_SLOTS.map((slot, rowIndex) => {
-            const isLastRow = rowIndex === TIME_SLOTS.length - 1;
+            {weekDays.map((day) => (
+              <div
+                key={day.isoDate}
+                className={`day-header ${day.isToday ? 'day-header--today' : ''}`}
+              >
+                <span className="day-header-short">{day.dayShort}</span>
+                <span className="day-header-num">{day.dayNumber}</span>
+              </div>
+            ))}
 
-            return (
-              <div key={slot.hour} style={{ display: 'contents' }}>
-                <div className="time-axis-cell" aria-hidden="true">
-                  <span className="time-axis-start">{slot.label}</span>
-                  {isLastRow && (
-                    <span className="time-axis-end">{slot.endLabel}</span>
-                  )}
-                </div>
+            {TIME_SLOTS.map((slot, rowIndex) => {
+              const isLastRow = rowIndex === TIME_SLOTS.length - 1;
 
-                {weekDays.map((day, colIndex) => {
-                  const slotKey = makeSlotKey(day.isoDate, slot.hour);
-                  const { displayUsers, isMine } = getCellDisplayUsers(slotKey);
-                  const hasUsers = displayUsers.length > 0;
+              return (
+                <div key={slot.hour} style={{ display: 'contents' }}>
+                  <div className="time-axis-cell" aria-hidden="true">
+                    <span className="time-axis-start">{slot.label}</span>
+                    {isLastRow && (
+                      <span className="time-axis-end">{slot.endLabel}</span>
+                    )}
+                  </div>
 
-                  const isHighlightedMatch =
-                    highlightedUserId &&
-                    displayUsers.some((u) => u.id === highlightedUserId);
-                  const isDimmed =
-                    Boolean(highlightedUserId) && !isHighlightedMatch;
+                  {weekDays.map((day, colIndex) => {
+                    const slotKey = makeSlotKey(day.isoDate, slot.hour);
+                    const { displayUsers, isMine } = getCellDisplayUsers(slotKey);
+                    const count = displayUsers.length;
+                    const heatLevel = getHeatLevel(count, heatMaxCount);
 
-                  const tintColor = isMine
-                    ? currentUser.color
-                    : displayUsers[0]?.color;
+                    const isHighlightedMatch =
+                      highlightedUserId &&
+                      displayUsers.some((u) => u.id === highlightedUserId);
+                    const isDimmed =
+                      Boolean(highlightedUserId) && !isHighlightedMatch;
 
-                  const cellStyle = hasUsers
-                    ? {
-                        backgroundColor: hexToRgba(
-                          tintColor,
-                          isMine ? 0.2 : 0.14,
-                        ),
+                    const cellClasses = [
+                      'slot-cell',
+                      colIndex === 0 ? 'slot-cell--first-col' : '',
+                      rowIndex === 0 ? 'slot-cell--first-row' : '',
+                      heatLevel > 0 ? `slot-cell--heat-${heatLevel}` : '',
+                      isMine ? 'slot-cell--mine' : '',
+                      isHighlightedMatch ? 'slot-cell--highlighted' : '',
+                      isDimmed ? 'slot-cell--dimmed' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ');
+
+                    const namesList = displayUsers.map((u) => u.name).join(', ');
+                    const ariaLabel =
+                      count > 0
+                        ? `${day.dayFull} ${day.dayNumber}/${day.monthNumber}, ${slot.range}, ${count} người rảnh: ${namesList}`
+                        : `${day.dayFull} ${day.dayNumber}/${day.monthNumber}, ${slot.range}, chưa có người chọn`;
+
+                    const handleShowTooltip = (event) => {
+                      if (isMobileViewport || dragRef.current || count === 0) {
+                        onLeaveSlot();
+                        return;
                       }
-                    : undefined;
+                      onHoverSlot({
+                        slotKey,
+                        day,
+                        slot,
+                        users: displayUsers,
+                        rect: event.currentTarget.getBoundingClientRect(),
+                      });
+                    };
 
-                  const cellClasses = [
-                    'slot-cell',
-                    colIndex === 0 ? 'slot-cell--first-col' : '',
-                    rowIndex === 0 ? 'slot-cell--first-row' : '',
-                    isMine ? 'slot-cell--mine' : '',
-                    isHighlightedMatch ? 'slot-cell--highlighted' : '',
-                    isDimmed ? 'slot-cell--dimmed' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ');
-
-                  const namesList = displayUsers.map((u) => u.name).join(', ');
-                  const ariaLabel = hasUsers
-                    ? `${day.dayFull} ${day.dayNumber}/${day.monthNumber}, ${slot.range}, ${displayUsers.length} người rảnh: ${namesList}`
-                    : `${day.dayFull} ${day.dayNumber}/${day.monthNumber}, ${slot.range}, chưa có người chọn`;
-
-                  const handleShowTooltip = (event) => {
-                    if (dragRef.current || !hasUsers) {
-                      onLeaveSlot();
-                      return;
-                    }
-                    onHoverSlot({
-                      slotKey,
-                      day,
-                      slot,
-                      users: displayUsers,
-                      rect: event.currentTarget.getBoundingClientRect(),
-                    });
-                  };
-
-                  return (
-                    <button
-                      key={slotKey}
-                      type="button"
-                      data-slot-key={slotKey}
-                      className={cellClasses}
-                      style={cellStyle}
-                      aria-label={ariaLabel}
-                      aria-pressed={isMine}
-                      onPointerDown={(e) => handleCellPointerDown(e, slotKey)}
-                      onKeyDown={(e) => handleCellKeyDown(e, slotKey)}
-                      onMouseEnter={handleShowTooltip}
-                      onFocus={handleShowTooltip}
-                      onMouseLeave={onLeaveSlot}
-                      onBlur={onLeaveSlot}
-                    >
-                      <span className="slot-cell-top">
-                        {isMine && <span className="slot-mine-tag">Bạn</span>}
-                        {displayUsers.length >= 2 && (
-                          <span className="slot-count-badge">
-                            {displayUsers.length}
+                    return (
+                      <button
+                        key={slotKey}
+                        type="button"
+                        data-slot-key={slotKey}
+                        className={cellClasses}
+                        aria-label={ariaLabel}
+                        aria-pressed={effectiveMode === 'paint' ? isMine : undefined}
+                        onPointerDown={(e) =>
+                          handleCellPointerDown(e, {
+                            slotKey,
+                            day,
+                            slot,
+                            displayUsers,
+                          })
+                        }
+                        onKeyDown={(e) =>
+                          handleCellKeyDown(e, {
+                            slotKey,
+                            day,
+                            slot,
+                            displayUsers,
+                          })
+                        }
+                        onMouseEnter={handleShowTooltip}
+                        onFocus={handleShowTooltip}
+                        onMouseLeave={onLeaveSlot}
+                        onBlur={onLeaveSlot}
+                      >
+                        {isMine && (
+                          <span className="slot-mine-check" aria-hidden="true">
+                            <Check size={11} strokeWidth={3} />
                           </span>
                         )}
-                      </span>
-
-                      {hasUsers && (
-                        <span className="slot-bars" aria-hidden="true">
-                          {displayUsers.slice(0, 6).map((u) => (
-                            <span
-                              key={u.id}
-                              className="slot-bar-segment"
-                              style={{ backgroundColor: u.color }}
-                            />
-                          ))}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
+                        {count >= 2 && (
+                          <span className="slot-count-num">{count}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       <div className="grid-legend">
         <div className="grid-legend-items">
+          <div className="heatmap-legend" aria-label="Thang mức độ trùng lịch">
+            <span className="heatmap-legend-text">Ít người</span>
+            <div className="heatmap-legend-scale" aria-hidden="true">
+              <span className="heatmap-swatch heatmap-swatch--1" />
+              <span className="heatmap-swatch heatmap-swatch--2" />
+              <span className="heatmap-swatch heatmap-swatch--3" />
+              <span className="heatmap-swatch heatmap-swatch--4" />
+              <span className="heatmap-swatch heatmap-swatch--5" />
+            </div>
+            <span className="heatmap-legend-text">Nhiều người</span>
+          </div>
+
           <span className="legend-item">
-            <span className="legend-swatch legend-swatch--mine" aria-hidden="true" />
-            <span>Viền đậm: lịch bạn đã chọn</span>
-          </span>
-          <span className="legend-item">
-            <span className="slot-count-badge" aria-hidden="true">
-              2+
+            <span className="legend-swatch legend-swatch--mine" aria-hidden="true">
+              <Check size={10} strokeWidth={3} />
             </span>
-            <span>Số người rảnh cùng khung giờ</span>
+            <span>Lịch bạn đã chọn</span>
           </span>
         </div>
-        <span>Di chuột vào ô đã tô để xem chi tiết</span>
       </div>
     </section>
   );

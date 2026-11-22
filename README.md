@@ -1,13 +1,13 @@
 # TimeScheduling — Lịch rảnh nhóm theo tuần
 
-Ứng dụng ReactJS (Frontend-only) giúp nhóm bạn chọn tên, chọn màu cá nhân và tô nhanh các khung giờ rảnh theo tuần (9 khung cách nhau 2 tiếng từ `06:00` đến `24:00`). Di chuột vào bất kỳ khung giờ nào đã tô để xem ngay danh sách những người rảnh và màu tương ứng.
+Ứng dụng ReactJS (Frontend-only) giúp nhóm bạn nhập tên và tô nhanh các khung giờ rảnh theo tuần (9 khung cách nhau 2 tiếng từ `06:00` đến `24:00`) theo bảng màu xanh lá cây đậm dần khi có nhiều người trùng lịch. Di chuột trên desktop hoặc dùng chế độ **Xem ai rảnh** trên mobile để xem danh sách những người rảnh ở từng khung giờ.
 
 ## Tính năng chính
 
-- **Tô lịch nhanh (Click & Drag-to-paint):** Nhấn hoặc kéo chuột/ngón tay qua nhiều ô để chọn hoặc bỏ chọn khung giờ rảnh.
+- **Heatmap xanh lá đậm dần:** Ô càng nhiều người trùng lịch càng chuyển sang sắc xanh lá đậm hơn; ô bạn đã chọn được đánh dấu viền xanh đậm kèm dấu tích.
+- **Tô lịch nhanh (Click & Drag-to-paint):** Nhấn hoặc kéo chuột qua nhiều ô để chọn hoặc bỏ chọn khung giờ rảnh; trên mobile tối ưu thao tác chạm với hai chế độ **Tô lịch / Xem ai rảnh** (mở Bottom Sheet chi tiết).
 - **Lịch tuần thực tế:** Hiển thị Thứ 2 – Chủ Nhật kèm ngày tháng thực tế, có nút **Tuần trước / Tuần này / Tuần sau**.
-- **9 khung giờ (06:00 – 24:00):** Chia đều các mốc 2 tiếng (`06:00–08:00` đến `22:00–24:00`).
-- **Hover xem ai rảnh:** Di chuột vào ô đã tô hiện tooltip danh sách người rảnh kèm màu đại diện, đồng thời làm nổi bật ở cột **Thành viên**.
+- **Hover xem ai rảnh:** Di chuột vào ô đã tô hiện tooltip danh sách người rảnh, đồng thời làm nổi bật ở cột **Thành viên**.
 - **Đồng bộ Realtime với Firebase (hoặc Local/Share Link):**
   - Khi cấu hình Firebase Realtime Database, mọi người mở cùng link `?room=...` sẽ thấy lịch của nhau cập nhật tức thì.
   - Khi chưa cấu hình Firebase, ứng dụng tự động chạy ở **Local Mode** (đồng bộ giữa các tab qua `BroadcastChannel` + `localStorage`, và đính kèm dữ liệu vào link chia sẻ).

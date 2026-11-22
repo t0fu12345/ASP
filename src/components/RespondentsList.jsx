@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
 
+function getInitial(name) {
+  const trimmed = name.trim();
+  return trimmed ? trimmed.charAt(0).toUpperCase() : '?';
+}
+
 export function RespondentsList({
   users,
   currentUserId,
@@ -16,16 +21,20 @@ export function RespondentsList({
   }, [hoveredSlot]);
 
   return (
-    <section className="card sidebar-card" aria-labelledby="respondents-title">
-      <h2 id="respondents-title" className="sidebar-card-title">
-        <span>Thành viên</span>
+    <section
+      className="card sidebar-card respondents-card"
+      aria-labelledby="respondents-title"
+    >
+      <div className="sidebar-card-title">
+        <h2 id="respondents-title" className="sidebar-card-heading">
+          Thành viên
+        </h2>
         <span className="count-pill">{users.length}</span>
-      </h2>
+      </div>
 
       {users.length === 0 ? (
         <div className="respondents-empty">
-          Chưa có ai điền lịch. Nhập tên của bạn ở trên và kéo chọn khung giờ
-          rảnh đầu tiên.
+          Chưa có ai điền lịch. Nhập tên của bạn và chọn khung giờ rảnh đầu tiên.
         </div>
       ) : (
         <>
@@ -69,11 +78,9 @@ export function RespondentsList({
                       if (!highlightedUserId) onHighlightUser(null, true);
                     }}
                   >
-                    <span
-                      className="color-dot"
-                      style={{ backgroundColor: user.color }}
-                      aria-hidden="true"
-                    />
+                    <span className="respondent-avatar" aria-hidden="true">
+                      {getInitial(user.name)}
+                    </span>
                     <span className="respondent-name">{user.name}</span>
                     {user.id === currentUserId && (
                       <span className="respondent-tag">Bạn</span>

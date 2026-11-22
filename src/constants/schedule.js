@@ -10,18 +10,13 @@ export const TIME_SLOTS = [
   { hour: 22, label: '22:00', endLabel: '24:00', range: '22:00 – 24:00' },
 ];
 
-export const USER_COLORS = [
-  { hex: '#10B981', name: 'Xanh lá' },
-  { hex: '#3B82F6', name: 'Xanh dương' },
-  { hex: '#F97316', name: 'Cam san hô' },
-  { hex: '#8B5CF6', name: 'Tím' },
-  { hex: '#EC4899', name: 'Hồng' },
-  { hex: '#F59E0B', name: 'Vàng hổ phách' },
-  { hex: '#14B8A6', name: 'Xanh ngọc' },
-  { hex: '#6366F1', name: 'Chàm' },
-  { hex: '#EF4444', name: 'Đỏ' },
-  { hex: '#475569', name: 'Xám đá' },
-];
+export const DEFAULT_USER_COLOR = '#16A34A';
+
+export function getHeatLevel(count, maxCount) {
+  if (!count || count <= 0) return 0;
+  if (!maxCount || maxCount <= 5) return Math.min(count, 5);
+  return Math.min(5, Math.max(1, Math.ceil((count / maxCount) * 5)));
+}
 
 const DAY_META = [
   { short: 'T2', full: 'Thứ 2' },
@@ -42,7 +37,7 @@ function toLocalIsoDate(date) {
 
 export function getStartOfWeek(date = new Date()) {
   const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayOfWeek = copy.getDay(); // 0 = Sun, 1 = Mon ... 6 = Sat
+  const dayOfWeek = copy.getDay();
   const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   copy.setDate(copy.getDate() + diffToMonday);
   return copy;
@@ -115,25 +110,4 @@ export function formatMonthTitle(weekStart) {
 
 export function makeSlotKey(isoDate, hour) {
   return `${isoDate}_${String(hour).padStart(2, '0')}`;
-}
-
-export function hexToRgba(hex, alpha = 0.16) {
-  if (typeof hex !== 'string') return `rgba(37, 99, 235, ${alpha})`;
-  const cleaned = hex.replace('#', '').trim();
-  const full =
-    cleaned.length === 3
-      ? cleaned
-          .split('')
-          .map((ch) => ch + ch)
-          .join('')
-      : cleaned;
-
-  if (!/^[0-9a-fA-F]{6}$/.test(full)) {
-    return `rgba(37, 99, 235, ${alpha})`;
-  }
-
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

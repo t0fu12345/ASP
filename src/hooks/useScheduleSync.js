@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { USER_COLORS } from '../constants/schedule';
+import { DEFAULT_USER_COLOR } from '../constants/schedule';
 import {
   decodeRoomFromHash,
   encodeRoomToHash,
@@ -57,13 +57,13 @@ function readSavedProfile() {
         color:
           typeof parsed.color === 'string' && parsed.color
             ? parsed.color
-            : USER_COLORS[0].hex,
+            : DEFAULT_USER_COLOR,
       };
     }
   } catch {
     // Ignore storage read failure
   }
-  return { name: '', color: USER_COLORS[0].hex };
+  return { name: '', color: DEFAULT_USER_COLOR };
 }
 
 function persistLocalProfile(profile) {
