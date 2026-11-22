@@ -158,6 +158,24 @@ export function useScheduleSync() {
     [roomId],
   );
 
+  const clearAllMySlots = useCallback(async () => {
+    if (profileSyncTimerRef.current) {
+      clearTimeout(profileSyncTimerRef.current);
+      profileSyncTimerRef.current = null;
+    }
+    setUsersMap((prev) => {
+      const next = { ...prev };
+      delete next[currentUserId];
+      return next;
+    });
+    try {
+      await removeUserSchedule(roomId, currentUserId);
+      setSyncStatus('synced');
+    } catch {
+      setSyncStatus('error');
+    }
+  }, [currentUserId, roomId]);
+
   const updateProfile = useCallback(
     ({ name, color }) => {
       const nextProfile = {
@@ -174,30 +192,35 @@ export function useScheduleSync() {
       const trimmedName = nextProfile.name.trim();
       const existingRemote = usersMapRef.current[currentUserId];
 
-      if (!trimmedName && existingRemote && existingRemote.slots.length === 0) {
-        removeUserSchedule(roomId, currentUserId).catch(() => {});
+      if (!trimmedName) {
+        if (existingRemote) {
+          clearAllMySlots();
+        }
         return;
       }
 
-      if (trimmedName) {
-        profileSyncTimerRef.current = setTimeout(() => {
-          const latestSlots = usersMapRef.current[currentUserId]?.slots || [];
-          persistUserToRoom({
-            id: currentUserId,
-            name: trimmedName,
-            color: nextProfile.color,
-            slots: latestSlots,
-          });
-        }, 280);
+      if (!existingRemote || existingRemote.slots.length === 0) {
+        return;
       }
+
+      profileSyncTimerRef.current = setTimeout(() => {
+        const latestSlots = usersMapRef.current[currentUserId]?.slots || [];
+        if (latestSlots.length === 0) return;
+        persistUserToRoom({
+          id: currentUserId,
+          name: trimmedName,
+          color: nextProfile.color,
+          slots: latestSlots,
+        });
+      }, 280);
     },
-    [currentUserId, persistUserToRoom, profile.color, profile.name, roomId],
+    [clearAllMySlots, currentUserId, persistUserToRoom, profile.color, profile.name],
   );
 
   const toggleSlots = useCallback(
     (slotKeys, shouldSelect) => {
       if (!profile.name.trim() || !slotKeys.length) return;
-      const existingSlots = new Set(usersMap[currentUserId]?.slots || []);
+      const existingSlots = new Set(usersMapRef.current[currentUserId]?.slots || []);
 
       for (const key of slotKeys) {
         if (shouldSelect) {
@@ -207,25 +230,36 @@ export function useScheduleSync() {
         }
       }
 
+      const nextSlots = Array.from(existingSlots);
+      if (nextSlots.length === 0) {
+        clearAllMySlots();
+        return;
+      }
+
       persistUserToRoom({
         id: currentUserId,
         name: profile.name.trim(),
         color: profile.color,
-        slots: Array.from(existingSlots),
+        slots: nextSlots,
       });
     },
-    [currentUserId, persistUserToRoom, profile.color, profile.name, usersMap],
+    [clearAllMySlots, currentUserId, persistUserToRoom, profile.color, profile.name],
   );
 
   const clearMyWeekSlots = useCallback(
     (weekIsoDates) => {
-      const existingSlots = usersMap[currentUserId]?.slots || [];
+      const existingSlots = usersMapRef.current[currentUserId]?.slots || [];
       if (!existingSlots.length) return;
       const weekDateSet = new Set(weekIsoDates);
       const remaining = existingSlots.filter((slotKey) => {
         const [isoDate] = slotKey.split('_');
         return !weekDateSet.has(isoDate);
       });
+
+      if (remaining.length === 0) {
+        clearAllMySlots();
+        return;
+      }
 
       if (profile.name.trim()) {
         persistUserToRoom({
@@ -236,22 +270,8 @@ export function useScheduleSync() {
         });
       }
     },
-    [currentUserId, persistUserToRoom, profile.color, profile.name, usersMap],
+    [clearAllMySlots, currentUserId, persistUserToRoom, profile.color, profile.name],
   );
-
-  const clearAllMySlots = useCallback(async () => {
-    setUsersMap((prev) => {
-      const next = { ...prev };
-      delete next[currentUserId];
-      return next;
-    });
-    try {
-      await removeUserSchedule(roomId, currentUserId);
-      setSyncStatus('synced');
-    } catch {
-      setSyncStatus('error');
-    }
-  }, [currentUserId, roomId]);
 
   const getShareUrl = useCallback(() => {
     const base = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomId)}`;

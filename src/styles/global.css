@@ -543,18 +543,6 @@ button:disabled {
   color: var(--color-heat-5-ink);
 }
 
-.slot-cell--mine {
-  box-shadow: inset 0 0 0 1.5px var(--color-heat-mine-border);
-}
-
-.slot-cell--mine:hover {
-  box-shadow: inset 0 0 0 2px var(--color-heat-mine-border);
-}
-
-.slot-cell--heat-5.slot-cell--mine {
-  box-shadow: inset 0 0 0 2px var(--color-heat-ink);
-}
-
 .slot-cell--dimmed {
   opacity: 0.25;
 }
@@ -562,17 +550,6 @@ button:disabled {
 .slot-cell--highlighted {
   box-shadow: inset 0 0 0 2px var(--color-heat-ink);
   z-index: 3;
-}
-
-.slot-mine-check {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: currentColor;
-  opacity: 0.85;
 }
 
 .slot-count-num {

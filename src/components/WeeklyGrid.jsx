@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -370,7 +369,6 @@ export function WeeklyGrid({
                       colIndex === 0 ? 'slot-cell--first-col' : '',
                       rowIndex === 0 ? 'slot-cell--first-row' : '',
                       heatLevel > 0 ? `slot-cell--heat-${heatLevel}` : '',
-                      isMine ? 'slot-cell--mine' : '',
                       isHighlightedMatch ? 'slot-cell--highlighted' : '',
                       isDimmed ? 'slot-cell--dimmed' : '',
                     ]
@@ -426,11 +424,6 @@ export function WeeklyGrid({
                         onMouseLeave={onLeaveSlot}
                         onBlur={onLeaveSlot}
                       >
-                        {isMine && (
-                          <span className="slot-mine-check" aria-hidden="true">
-                            <Check size={11} strokeWidth={3} />
-                          </span>
-                        )}
                         {count >= 2 && (
                           <span className="slot-count-num">{count}</span>
                         )}
@@ -457,13 +450,6 @@ export function WeeklyGrid({
             </div>
             <span className="heatmap-legend-text">Nhiều người</span>
           </div>
-
-          <span className="legend-item">
-            <span className="legend-swatch legend-swatch--mine" aria-hidden="true">
-              <Check size={10} strokeWidth={3} />
-            </span>
-            <span>Lịch bạn đã chọn</span>
-          </span>
         </div>
       </div>
     </section>

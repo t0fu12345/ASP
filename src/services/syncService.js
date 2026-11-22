@@ -64,7 +64,7 @@ function normalizeUsersMap(rawMap) {
   const normalized = {};
   for (const [id, entry] of Object.entries(rawMap)) {
     const user = normalizeUserRecord(id, entry);
-    if (user && user.name) {
+    if (user && user.name && user.slots.length > 0) {
       normalized[user.id] = user;
     }
   }
