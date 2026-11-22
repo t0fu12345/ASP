@@ -74,7 +74,8 @@
 
   /* Z-index Scale */
   --z-base: 1;
-  --z-sticky: 20;
+  --z-sticky: 12;
+  --z-header: 30;
   --z-tooltip: 50;
   --z-sheet: 80;
   --z-toast: 100;
