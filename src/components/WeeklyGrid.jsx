@@ -423,11 +423,7 @@ export function WeeklyGrid({
                         onFocus={handleShowTooltip}
                         onMouseLeave={onLeaveSlot}
                         onBlur={onLeaveSlot}
-                      >
-                        {count >= 2 && (
-                          <span className="slot-count-num">{count}</span>
-                        )}
-                      </button>
+                      />
                     );
                   })}
                 </div>

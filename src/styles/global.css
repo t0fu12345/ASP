@@ -353,6 +353,7 @@ button:disabled {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+  padding: 10px 0;
   border-radius: var(--radius-md);
 }
 
@@ -510,13 +511,6 @@ button:disabled {
 .slot-cell--highlighted {
   box-shadow: inset 0 0 0 2px var(--color-heat-ink);
   z-index: 3;
-}
-
-.slot-count-num {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
 }
 
 /* Heatmap Legend */
