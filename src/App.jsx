@@ -2,17 +2,36 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Info, X } from 'lucide-react';
 import { Header } from './components/Header';
 import { RespondentsList } from './components/RespondentsList';
+import { SlotEffectsOverlay } from './components/SlotEffectsOverlay';
 import { SlotBottomSheet, SlotTooltip } from './components/SlotTooltip';
 import { UserSetupPanel } from './components/UserSetupPanel';
 import { WeeklyGrid } from './components/WeeklyGrid';
-import { addWeeks, getStartOfWeek, getWeekDays } from './constants/schedule';
+import {
+  ANIMATION_EFFECTS,
+  addWeeks,
+  getStartOfWeek,
+  getWeekDays,
+} from './constants/schedule';
 import { useScheduleSync } from './hooks/useScheduleSync';
 
 const MOBILE_QUERY = '(max-width: 960px)';
+const FX_STORAGE_KEY = 'timescheduling_fx';
 
 function getInitialIsMobile() {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
   return window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function getInitialEffectStyle() {
+  try {
+    const saved = localStorage.getItem(FX_STORAGE_KEY);
+    if (saved && ANIMATION_EFFECTS.some((item) => item.id === saved)) {
+      return saved;
+    }
+  } catch {
+    // Ignore storage read error
+  }
+  return 'slash';
 }
 
 export default function App() {
@@ -31,6 +50,7 @@ export default function App() {
   const [hoveredSlot, setHoveredSlot] = useState(null);
   const [inspectedSlot, setInspectedSlot] = useState(null);
   const [interactionMode, setInteractionMode] = useState('paint');
+  const [effectStyle, setEffectStyle] = useState(getInitialEffectStyle);
   const [isMobileViewport, setIsMobileViewport] = useState(getInitialIsMobile);
   const [pinnedHighlightUserId, setPinnedHighlightUserId] = useState(null);
   const [hoverHighlightUserId, setHoverHighlightUserId] = useState(null);
@@ -40,6 +60,7 @@ export default function App() {
 
   const nameInputRef = useRef(null);
   const toastTimerRef = useRef(null);
+  const effectsRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return undefined;
@@ -132,6 +153,15 @@ export default function App() {
     showToast('Khung giờ này chưa có ai chọn.');
   }, [showToast]);
 
+  const handleChangeEffectStyle = useCallback((nextStyle) => {
+    setEffectStyle(nextStyle);
+    try {
+      localStorage.setItem(FX_STORAGE_KEY, nextStyle);
+    } catch {
+      // Ignore storage write error
+    }
+  }, []);
+
   const activeHighlightedUserId = pinnedHighlightUserId || hoverHighlightUserId;
 
   return (
@@ -169,6 +199,7 @@ export default function App() {
             highlightedUserId={activeHighlightedUserId}
             interactionMode={interactionMode}
             isMobileViewport={isMobileViewport}
+            effectsRef={effectsRef}
             onChangeInteractionMode={handleChangeInteractionMode}
             onPrevWeek={() => handleChangeWeek((prev) => addWeeks(prev, -1))}
             onTodayWeek={() => handleChangeWeek(getStartOfWeek(new Date()))}
@@ -189,6 +220,8 @@ export default function App() {
             onClearNameError={() => setNameError('')}
             currentUser={currentUser}
             weekSlotCount={myWeekSlotCount}
+            effectStyle={effectStyle}
+            onChangeEffectStyle={handleChangeEffectStyle}
             onUpdateProfile={updateProfile}
             onClearWeek={handleClearWeek}
           />
@@ -220,6 +253,8 @@ export default function App() {
           onClose={() => setInspectedSlot(null)}
         />
       )}
+
+      <SlotEffectsOverlay ref={effectsRef} effectStyle={effectStyle} />
 
       {toastMessage && (
         <div className="toast" role="status" aria-live="polite">

@@ -12,6 +12,12 @@ export const TIME_SLOTS = [
 
 export const DEFAULT_USER_COLOR = '#16A34A';
 
+export const ANIMATION_EFFECTS = [
+  { id: 'slash', label: 'Vệt chém', description: 'Tia sáng & tia lửa khi kéo' },
+  { id: 'bloom', label: 'Hoa lá', description: 'Lá xanh & cánh hoa bung nở' },
+  { id: 'ink', label: 'Cọ mực', description: 'Nét mực loang & hạt sáng' },
+];
+
 export function getHeatLevel(count, maxCount) {
   if (!count || count <= 0) return 0;
   if (!maxCount || maxCount <= 5) return Math.min(count, 5);

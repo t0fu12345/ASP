@@ -1,4 +1,11 @@
-import { Trash2 } from 'lucide-react';
+import { Droplets, Leaf, Sparkles, Trash2 } from 'lucide-react';
+import { ANIMATION_EFFECTS } from '../constants/schedule';
+
+const EFFECT_ICONS = {
+  slash: Sparkles,
+  bloom: Leaf,
+  ink: Droplets,
+};
 
 export function UserSetupPanel({
   nameInputRef,
@@ -6,6 +13,8 @@ export function UserSetupPanel({
   onClearNameError,
   currentUser,
   weekSlotCount,
+  effectStyle,
+  onChangeEffectStyle,
   onUpdateProfile,
   onClearWeek,
 }) {
@@ -54,6 +63,34 @@ export function UserSetupPanel({
               Nhập tên xong, nhấn hoặc kéo trên lịch để đánh dấu giờ rảnh.
             </p>
           )}
+        </div>
+
+        <div className="field-group">
+          <span className="field-label">Hiệu ứng khi tô lịch</span>
+          <div
+            className="fx-selector-grid"
+            role="radiogroup"
+            aria-label="Chọn hiệu ứng khi tô lịch"
+          >
+            {ANIMATION_EFFECTS.map((fx) => {
+              const Icon = EFFECT_ICONS[fx.id] || Sparkles;
+              const active = effectStyle === fx.id;
+              return (
+                <button
+                  key={fx.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  title={fx.description}
+                  className={`fx-pill-btn ${active ? 'fx-pill-btn--active' : ''}`}
+                  onClick={() => onChangeEffectStyle(fx.id)}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  <span>{fx.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <button

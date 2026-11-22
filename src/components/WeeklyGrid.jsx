@@ -21,6 +21,7 @@ export function WeeklyGrid({
   highlightedUserId,
   interactionMode,
   isMobileViewport,
+  effectsRef,
   onChangeInteractionMode,
   onPrevWeek,
   onTodayWeek,
@@ -37,8 +38,26 @@ export function WeeklyGrid({
   const weekRangeLabel = useMemo(() => formatWeekRange(weekStart), [weekStart]);
 
   const [dragState, setDragState] = useState(null);
+  const [confirmBatch, setConfirmBatch] = useState(null);
   const dragRef = useRef(null);
+  const strokeIdRef = useRef(0);
   const touchStartRef = useRef(null);
+  const confirmTimerRef = useRef(null);
+
+  const triggerConfirmWave = (orderedKeys, mode) => {
+    if (!orderedKeys.length) return;
+    if (confirmTimerRef.current) {
+      clearTimeout(confirmTimerRef.current);
+    }
+    const orderMap = new Map();
+    orderedKeys.forEach((key, idx) => orderMap.set(key, idx));
+    setConfirmBatch({ orderMap, mode, id: Date.now() });
+
+    const duration = Math.min(450 + orderedKeys.length * 18, 900);
+    confirmTimerRef.current = setTimeout(() => {
+      setConfirmBatch(null);
+    }, duration);
+  };
 
   const slotUsersMap = useMemo(() => {
     const map = new Map();
@@ -78,12 +97,25 @@ export function WeeklyGrid({
   useEffect(() => {
     const handlePointerMove = (event) => {
       if (!dragRef.current) return;
+      effectsRef?.current?.addTrailPoint(
+        event.clientX,
+        event.clientY,
+        dragRef.current.mode,
+        dragRef.current.strokeId,
+      );
+
       const target = document.elementFromPoint(event.clientX, event.clientY);
       const cellEl = target?.closest?.('[data-slot-key]');
       const slotKey = cellEl?.getAttribute('data-slot-key');
       if (!slotKey || dragRef.current.visited.has(slotKey)) return;
 
       dragRef.current.visited.add(slotKey);
+      effectsRef?.current?.emitCellBurst(
+        cellEl.getBoundingClientRect(),
+        dragRef.current.mode,
+        event.clientX,
+        event.clientY,
+      );
       setDragState({
         mode: dragRef.current.mode,
         visited: new Set(dragRef.current.visited),
@@ -92,7 +124,7 @@ export function WeeklyGrid({
 
     const handlePointerUp = (event) => {
       if (touchStartRef.current) {
-        const { slotKey, day, slot, users: cellUsers, x, y, shouldSelect, mode } =
+        const { slotKey, day, slot, users: cellUsers, x, y, shouldSelect, mode, rect } =
           touchStartRef.current;
         touchStartRef.current = null;
         const dist = Math.hypot(event.clientX - x, event.clientY - y);
@@ -104,7 +136,13 @@ export function WeeklyGrid({
               onInspectEmpty?.();
             }
           } else {
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+              navigator.vibrate(8);
+            }
+            const paintMode = shouldSelect ? 'add' : 'remove';
+            effectsRef?.current?.emitCellBurst(rect, paintMode, event.clientX, event.clientY);
             onToggleSlots([slotKey], shouldSelect);
+            triggerConfirmWave([slotKey], paintMode);
           }
         }
       }
@@ -114,7 +152,9 @@ export function WeeklyGrid({
       dragRef.current = null;
       setDragState(null);
       if (visited.size > 0) {
-        onToggleSlots(Array.from(visited), mode === 'add');
+        const keys = Array.from(visited);
+        onToggleSlots(keys, mode === 'add');
+        triggerConfirmWave(keys, mode);
       }
     };
 
@@ -132,6 +172,9 @@ export function WeeklyGrid({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerCancel);
+      if (confirmTimerRef.current) {
+        clearTimeout(confirmTimerRef.current);
+      }
     };
   }, [onInspectEmpty, onInspectSlot, onToggleSlots]);
 
@@ -181,12 +224,19 @@ export function WeeklyGrid({
         y: event.clientY,
         shouldSelect: paintMode === 'add',
         mode: 'paint',
+        rect: event.currentTarget.getBoundingClientRect(),
       };
       return;
     }
 
+    strokeIdRef.current += 1;
+    const strokeId = strokeIdRef.current;
+    const rect = event.currentTarget.getBoundingClientRect();
+    effectsRef?.current?.addTrailPoint(event.clientX, event.clientY, paintMode, strokeId);
+    effectsRef?.current?.emitCellBurst(rect, paintMode, event.clientX, event.clientY);
+
     const visited = new Set([slotKey]);
-    dragRef.current = { mode: paintMode, visited };
+    dragRef.current = { mode: paintMode, visited, strokeId };
     setDragState({ mode: paintMode, visited: new Set(visited) });
   };
 
@@ -208,7 +258,13 @@ export function WeeklyGrid({
       return;
     }
     const isSelected = currentUserSlotSet.has(slotKey);
+    const paintMode = !isSelected ? 'add' : 'remove';
+    effectsRef?.current?.emitCellBurst(
+      event.currentTarget.getBoundingClientRect(),
+      paintMode,
+    );
     onToggleSlots([slotKey], !isSelected);
+    triggerConfirmWave([slotKey], paintMode);
   };
 
   const getCellDisplayUsers = (slotKey) => {
@@ -364,16 +420,36 @@ export function WeeklyGrid({
                     const isDimmed =
                       Boolean(highlightedUserId) && !isHighlightedMatch;
 
+                    const isDraggingThis = Boolean(
+                      dragState && dragState.visited.has(slotKey),
+                    );
+                    const confirmIndex = confirmBatch?.orderMap.get(slotKey);
+                    const isConfirming = confirmIndex !== undefined;
+
                     const cellClasses = [
                       'slot-cell',
                       colIndex === 0 ? 'slot-cell--first-col' : '',
                       rowIndex === 0 ? 'slot-cell--first-row' : '',
                       heatLevel > 0 ? `slot-cell--heat-${heatLevel}` : '',
+                      isDraggingThis
+                        ? dragState.mode === 'add'
+                          ? 'slot-cell--dragging-add'
+                          : 'slot-cell--dragging-remove'
+                        : '',
+                      isConfirming
+                        ? confirmBatch.mode === 'add'
+                          ? 'slot-cell--confirm-add'
+                          : 'slot-cell--confirm-remove'
+                        : '',
                       isHighlightedMatch ? 'slot-cell--highlighted' : '',
                       isDimmed ? 'slot-cell--dimmed' : '',
                     ]
                       .filter(Boolean)
                       .join(' ');
+
+                    const cellStyle = isConfirming
+                      ? { '--stagger-delay': `${Math.min(confirmIndex * 18, 220)}ms` }
+                      : undefined;
 
                     const namesList = displayUsers.map((u) => u.name).join(', ');
                     const ariaLabel =
@@ -401,6 +477,7 @@ export function WeeklyGrid({
                         type="button"
                         data-slot-key={slotKey}
                         className={cellClasses}
+                        style={cellStyle}
                         aria-label={ariaLabel}
                         aria-pressed={effectiveMode === 'paint' ? isMine : undefined}
                         onPointerDown={(e) =>

@@ -446,6 +446,7 @@ button:disabled {
   position: relative;
   min-height: 48px;
   padding: 6px;
+  overflow: hidden;
   border-right: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   border-top: none;
@@ -457,7 +458,12 @@ button:disabled {
   transition:
     background-color var(--transition-fast),
     opacity var(--transition-fast),
-    box-shadow var(--transition-fast);
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.slot-cell:active {
+  transform: scale(0.96);
 }
 
 .slot-cell--first-col {
@@ -511,6 +517,65 @@ button:disabled {
 .slot-cell--highlighted {
   box-shadow: inset 0 0 0 2px var(--color-heat-ink);
   z-index: 3;
+}
+
+/* Slot Pop, Press, Drag Trail & Stagger Confirm Animations */
+@keyframes slotPopAdd {
+  0% {
+    transform: scale(0.91);
+  }
+  55% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes slotSinkRemove {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.93);
+  }
+  100% {
+    transform: scale(0.97);
+  }
+}
+
+@keyframes slotConfirmWave {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.86);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
+.slot-cell--dragging-add {
+  animation: slotPopAdd 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  box-shadow: inset 0 0 0 1.5px var(--color-drag-add-ring);
+  z-index: 3;
+}
+
+.slot-cell--dragging-remove {
+  animation: slotSinkRemove 160ms ease-out forwards;
+  box-shadow: inset 0 0 0 1.5px var(--color-drag-remove-ring);
+  z-index: 3;
+}
+
+.slot-cell--confirm-add::after,
+.slot-cell--confirm-remove::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: var(--color-confirm-flash);
+  opacity: 0;
+  animation: slotConfirmWave 260ms ease-out var(--stagger-delay, 0ms) forwards;
 }
 
 /* Heatmap Legend */
@@ -828,6 +893,53 @@ button:disabled {
   color: var(--color-ink-subtle);
 }
 
+/* Effect Style Selector */
+.fx-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.fx-pill-btn {
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.fx-pill-btn:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-primary-border);
+  color: var(--color-ink);
+}
+
+.fx-pill-btn--active {
+  background-color: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+  color: var(--color-primary-hover);
+}
+
+/* Full-Viewport Canvas Effects Overlay */
+.slot-effects-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
 /* Respondents List */
 .respondents-empty {
   padding: var(--space-4) var(--space-3);
@@ -1009,7 +1121,8 @@ button:disabled {
     border: 0;
   }
 
-  .btn--clear-week {
+  .btn--clear-week,
+  .fx-pill-btn {
     min-height: 44px;
   }
 

@@ -41,6 +41,9 @@
   --color-heat-mine-border: #15803D;
   --color-heat-swatch-border: rgba(20, 83, 45, 0.14);
   --color-scroll-fade: rgba(255, 255, 255, 0.85);
+  --color-drag-add-ring: rgba(22, 163, 74, 0.45);
+  --color-drag-remove-ring: rgba(220, 38, 38, 0.35);
+  --color-confirm-flash: rgba(255, 255, 255, 0.6);
 
   --color-warning: #B45309;
   --color-warning-subtle: #FFFBEB;
