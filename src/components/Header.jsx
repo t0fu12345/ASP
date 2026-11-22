@@ -1,46 +1,8 @@
 import { useState } from 'react';
 import { CalendarDays, Check, Copy, Hash } from 'lucide-react';
 
-function getSyncPillInfo(syncMode, syncStatus) {
-  if (syncMode === 'local') {
-    return {
-      className: 'sync-pill sync-pill--local',
-      label: 'Local',
-      title: 'Đồng bộ giữa các tab trình duyệt. Kết nối Firebase để đồng bộ nhiều thiết bị.',
-    };
-  }
-
-  switch (syncStatus) {
-    case 'synced':
-      return {
-        className: 'sync-pill sync-pill--synced',
-        label: 'Realtime',
-        title: 'Đã kết nối Firebase Realtime Database',
-      };
-    case 'syncing':
-      return {
-        className: 'sync-pill sync-pill--syncing',
-        label: 'Đang đồng bộ...',
-        title: 'Đang đồng bộ dữ liệu lên Firebase',
-      };
-    case 'offline':
-      return {
-        className: 'sync-pill sync-pill--offline',
-        label: 'Mất kết nối',
-        title: 'Đang mất kết nối mạng tới Firebase',
-      };
-    default:
-      return {
-        className: 'sync-pill sync-pill--error',
-        label: 'Lỗi đồng bộ',
-        title: 'Không thể kết nối Firebase Realtime Database. Kiểm tra cấu hình hoặc Rules.',
-      };
-  }
-}
-
-export function Header({ roomId, syncMode, syncStatus, onCopyLink }) {
+export function Header({ roomId, onCopyLink }) {
   const [copied, setCopied] = useState(false);
-  const pill = getSyncPillInfo(syncMode, syncStatus);
 
   const handleCopy = async () => {
     const ok = await onCopyLink();
@@ -64,11 +26,6 @@ export function Header({ roomId, syncMode, syncStatus, onCopyLink }) {
           <span className="room-badge" title="Mã phòng dùng chung">
             <Hash size={13} aria-hidden="true" />
             <span>{roomId}</span>
-          </span>
-
-          <span className={pill.className} title={pill.title}>
-            <span className="sync-dot" aria-hidden="true" />
-            <span>{pill.label}</span>
           </span>
         </div>
 

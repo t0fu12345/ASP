@@ -19,7 +19,6 @@ export default function App() {
   const {
     roomId,
     syncMode,
-    syncStatus,
     users,
     currentUser,
     updateProfile,
@@ -139,8 +138,6 @@ export default function App() {
     <div className="app-shell">
       <Header
         roomId={roomId}
-        syncMode={syncMode}
-        syncStatus={syncStatus}
         onCopyLink={handleCopyLink}
       />
 
